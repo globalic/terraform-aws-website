@@ -1,0 +1,20 @@
+version: 2.1
+executors:
+  base:
+    docker:
+      - image: circleci/node:11
+    working_directory: ~/terraform-aws-website
+jobs:
+  build:
+    steps:
+      - checkout
+      - run: sudo apt-get install python-dev python-pip
+      - run: sudo pip install --no-cache-dir --disable-pip-version-check pre-commit==1.14.2
+      - run:
+          name: Run pre-commit tests
+          command: pre-commit run --all-files
+
+workflows:
+  main:
+    jobs:
+      - build
