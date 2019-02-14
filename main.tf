@@ -26,7 +26,7 @@ resource "aws_acm_certificate" "main" {
   domain_name       = "${var.fqdn}"
   validation_method = "DNS"
 
-  tags {}
+  tags = "${merge(var.acm_tags, map("Name", var.fqdn, "Automation", "Terraform"))}"
 
   lifecycle {
     create_before_destroy = true
@@ -53,8 +53,8 @@ resource "aws_s3_bucket" "main" {
   acl    = "private"
 
   cors_rule {
-    allowed_methods = ["GET"]
-    allowed_origins = ["*"]
+    allowed_methods = "${var.s3_cors_allowed_methods}"
+    allowed_origins = "${var.s3_cors_allowed_origins}"
   }
 
   website {
@@ -68,9 +68,7 @@ resource "aws_s3_bucket" "main" {
     target_prefix = "${var.s3_logs_prefix}"
   }
 
-  tags {
-    Name = "${var.s3_bucket_name}"
-  }
+  tags = "${merge(var.s3_tags, map("Automation", "Terraform"))}"
 }
 
 data "aws_iam_policy_document" "s3" {
@@ -99,9 +97,9 @@ resource "aws_cloudfront_distribution" "main" {
       http_port                = 80
       https_port               = 443
       origin_protocol_policy   = "http-only"
-      origin_ssl_protocols     = ["SSLv3", "TLSv1", "TLSv1.1", "TLSv1.2"]
+      origin_ssl_protocols     = "${var.cloudfront_origin_ssl_protocols}"
       origin_keepalive_timeout = 5
-      origin_read_timeout      = 5
+      origin_read_timeout      = "${var.cloudfront_origin_read_timeout}"
     }
   }
 
@@ -113,7 +111,7 @@ resource "aws_cloudfront_distribution" "main" {
   logging_config {
     include_cookies = false
     bucket          = "${var.cloudfront_logs_bucket}"
-    prefix          = "${var.cloudfront_logs_prefix}"
+    prefix          = "${length(var.cloudfront_logs_prefix) > 0 ? var.cloudfront_logs_prefix : format("logs/cloudfront/%s", var.fqdn) }"
   }
 
   aliases = ["${var.fqdn}"]
@@ -125,7 +123,7 @@ resource "aws_cloudfront_distribution" "main" {
     target_origin_id = "${var.origin_id}"
 
     forwarded_values {
-      query_string = true
+      query_string = "${var.cloudfront_forwarded_query_strings}"
 
       cookies {
         forward = "none"
@@ -146,21 +144,27 @@ resource "aws_cloudfront_distribution" "main" {
     }
   }
 
-  tags {
-    Name = "${var.name}"
-  }
+  tags = "${merge(var.cloudfront_tags, map("Automation", "Terraform"))}"
 
   viewer_certificate {
     acm_certificate_arn            = "${aws_acm_certificate.main.arn}"
     cloudfront_default_certificate = false
     ssl_support_method             = "sni-only"
   }
+
+  custom_error_response {
+    error_code            = 404
+    error_caching_min_ttl = 0
+    response_code         = "${var.cloudfront_404_response_code}"
+    response_page_path    = "${var.cloudfront_404_response_path}"
+  }
 }
 
-resource "aws_route53_record" "www" {
-  zone_id = "${var.zone_id}"
-  name    = "${var.fqdn}"
-  type    = "A"
+resource "aws_route53_record" "a" {
+  zone_id         = "${var.zone_id}"
+  name            = "${var.fqdn}"
+  type            = "A"
+  allow_overwrite = "true"
 
   alias {
     name                   = "${aws_cloudfront_distribution.main.domain_name}"
