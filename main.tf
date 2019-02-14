@@ -19,6 +19,13 @@
  * ```
  */
 
+provider "aws" {
+  version = "~> 1.57.0"
+
+  alias  = "us-east-1"
+  region = "us-east-1"
+}
+
 # https://docs.aws.amazon.com/acm/latest/userguide/acm-regions.html
 resource "aws_acm_certificate" "main" {
   provider = "aws.us-east-1"
@@ -36,7 +43,7 @@ resource "aws_acm_certificate" "main" {
 resource "aws_route53_record" "cert_validation" {
   name    = "${aws_acm_certificate.main.domain_validation_options.0.resource_record_name}"
   type    = "${aws_acm_certificate.main.domain_validation_options.0.resource_record_type}"
-  zone_id = "${var.zone_id}"
+  zone_id = "${var.route53_zone_id}"
   records = ["${aws_acm_certificate.main.domain_validation_options.0.resource_record_value}"]
   ttl     = 60
 }
@@ -52,22 +59,22 @@ resource "aws_s3_bucket" "main" {
   bucket = "${var.s3_bucket_name}"
   acl    = "private"
 
+  /* Disabled until https://github.com/terraform-providers/terraform-provider-aws/pull/7547 is merged
   cors_rule {
     allowed_methods = "${var.s3_cors_allowed_methods}"
     allowed_origins = "${var.s3_cors_allowed_origins}"
   }
+  */
 
   website {
     index_document = "${var.index_document}"
     error_document = "${var.error_document}"
     routing_rules  = "${var.routing_rules}"
   }
-
   logging {
-    target_bucket = "${var.s3_logs_bucket}"
+    target_bucket = "${var.s3_logs_bucket_id}"
     target_prefix = "${var.s3_logs_prefix}"
   }
-
   tags = "${merge(var.s3_tags, map("Automation", "Terraform"))}"
 }
 
@@ -110,7 +117,7 @@ resource "aws_cloudfront_distribution" "main" {
 
   logging_config {
     include_cookies = false
-    bucket          = "${var.cloudfront_logs_bucket}"
+    bucket          = "${var.cloudfront_logs_bucket_domain_name}"
     prefix          = "${length(var.cloudfront_logs_prefix) > 0 ? var.cloudfront_logs_prefix : format("logs/cloudfront/%s", var.fqdn) }"
   }
 
@@ -161,7 +168,7 @@ resource "aws_cloudfront_distribution" "main" {
 }
 
 resource "aws_route53_record" "a" {
-  zone_id         = "${var.zone_id}"
+  zone_id         = "${var.route53_zone_id}"
   name            = "${var.fqdn}"
   type            = "A"
   allow_overwrite = "true"

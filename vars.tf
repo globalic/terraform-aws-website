@@ -1,5 +1,4 @@
-variable "zone_id" {}
-variable "name" {}
+variable "route53_zone_id" {}
 
 variable "fqdn" {}
 
@@ -9,7 +8,6 @@ variable "acm_tags" {
 }
 
 variable "origin_id" {}
-variable "origin_access_identity" {}
 
 variable "cloudfront_comment" {}
 
@@ -27,7 +25,7 @@ variable "cloudfront_tags" {
   default = {}
 }
 
-variable "cloudfront_logs_bucket" {}
+variable "cloudfront_logs_bucket_domain_name" {}
 
 variable "cloudfront_logs_prefix" {
   default = ""
@@ -68,7 +66,7 @@ variable "s3_tags" {
 
 variable "s3_bucket_name" {}
 
-variable "s3_logs_bucket" {}
+variable "s3_logs_bucket_id" {}
 
 variable "s3_logs_prefix" {
   default = "logs/s3"
