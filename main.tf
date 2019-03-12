@@ -1,9 +1,10 @@
 /**
- * Creates a static website.
+ * Creates a static website hosted on S3 and served from CloudFront.
  *
  * Creates the following resources:
  *
  * * ACM Certificate
+ * * S3 Bucket
  * * CloudFront Distribution
  * * Route53 Records
  *
@@ -18,13 +19,6 @@
  * }
  * ```
  */
-
-provider "aws" {
-  version = "~> 1.57.0"
-
-  alias  = "us-east-1"
-  region = "us-east-1"
-}
 
 # https://docs.aws.amazon.com/acm/latest/userguide/acm-regions.html
 resource "aws_acm_certificate" "main" {
@@ -59,27 +53,29 @@ resource "aws_s3_bucket" "main" {
   bucket = "${var.s3_bucket_name}"
   acl    = "private"
 
-  /* Disabled until https://github.com/terraform-providers/terraform-provider-aws/pull/7547 is merged
   cors_rule {
     allowed_methods = "${var.s3_cors_allowed_methods}"
     allowed_origins = "${var.s3_cors_allowed_origins}"
+    allowed_headers = "${var.s3_cors_allowed_headers}"
   }
-  */
 
   website {
     index_document = "${var.index_document}"
     error_document = "${var.error_document}"
     routing_rules  = "${var.routing_rules}"
   }
+
   logging {
     target_bucket = "${var.s3_logs_bucket_id}"
     target_prefix = "${var.s3_logs_prefix}"
   }
+
   tags = "${merge(var.s3_tags, map("Automation", "Terraform"))}"
 }
 
 data "aws_iam_policy_document" "s3" {
   statement {
+    sid       = "allow-public-read"
     actions   = ["s3:GetObject"]
     resources = ["${aws_s3_bucket.main.arn}/*"]
 
@@ -96,6 +92,8 @@ resource "aws_s3_bucket_policy" "main" {
 }
 
 resource "aws_cloudfront_distribution" "main" {
+  depends_on = ["aws_acm_certificate_validation.main"]
+
   origin {
     domain_name = "${aws_s3_bucket.main.website_endpoint}"
     origin_id   = "${var.origin_id}"

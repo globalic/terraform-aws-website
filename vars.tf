@@ -86,3 +86,8 @@ variable "s3_cors_allowed_origins" {
   type    = "list"
   default = []
 }
+
+variable "s3_cors_allowed_headers" {
+  type    = "list"
+  default = []
+}

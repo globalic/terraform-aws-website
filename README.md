@@ -1,9 +1,10 @@
 <!-- BEGINNING OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
-Creates a static website.
+Creates a static website hosted on S3 and served from CloudFront.
 
 Creates the following resources:
 
 * ACM Certificate
+* S3 Bucket
 * CloudFront Distribution
 * Route53 Records
 
@@ -40,6 +41,7 @@ module "website" {
 | routing\_rules |  | string | `""` | no |
 | s3\_bucket\_name |  | string | n/a | yes |
 | s3\_cors |  | list | `[]` | no |
+| s3\_cors\_allowed\_headers |  | list | `[]` | no |
 | s3\_cors\_allowed\_methods |  | list | `[]` | no |
 | s3\_cors\_allowed\_origins |  | list | `[]` | no |
 | s3\_logs\_bucket\_id |  | string | n/a | yes |
